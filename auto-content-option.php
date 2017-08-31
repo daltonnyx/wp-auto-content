@@ -2,7 +2,7 @@
     /**
      * Setting metabox for post
      * Create option page
-     * 
+     *
      */
      class auto_content_option {
         private $auto_rss;
@@ -37,9 +37,9 @@
                 <h2>Auto Content Setting</h2>
                 <?php settings_errors(); ?>
                 <form action="options.php" method="POST">
-                    <?php 
+                    <?php
                         settings_fields('_sosi_autocontent');
-                        do_settings_sections('sosi_auto_content'); 
+                        do_settings_sections('sosi_auto_content');
                         submit_button('Save Changes');
                         if(empty($this->auto_opt) && empty($this->auto_rss))
                             $disabled_button = 'disabled';
@@ -63,8 +63,8 @@
             add_settings_field('_auto_title','Title selector:',array($this,'_auto_title_render'),'sosi_auto_content','auto_content_section');
             add_settings_field('_auto_publish_date','Publish Date selector:',array($this,'_auto_publish_date_render'),'sosi_auto_content','auto_content_section');
         }
-        
-        public function section_render(){            
+
+        public function section_render(){
             echo '<p>Set options for Auto get content</p>';
         }
         public function _auto_link_box_render(){
@@ -107,7 +107,7 @@
                 $input['status'] = sanitize_text_field($input['status']);
             if(isset($input['category']))
                 $input['category'] = sanitize_text_field($input['category']);
-            return $input;                
+            return $input;
         }
      }
 

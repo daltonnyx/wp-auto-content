@@ -1,8 +1,8 @@
-<?php 
+<?php
     /**
      * Class to save content from array returned from rss-fetch class
      */
-     
+
      class save_content {
         private $rssopt;
         private $thumbnail_id;
@@ -12,14 +12,18 @@
             //include '/inc/simple_html_dom.php';
             $this->rssopt = get_option('_auto_rssopts');
         }
-        
+
         public function load_content($contenturl){
+          try {
                 $link = $contenturl;
                 $curl = curl_init($link);
                 curl_setopt($curl,CURLOPT_RETURNTRANSFER,true);
                 $raw_html = curl_exec($curl);
                 curl_close($curl);
                 $raw_dom = str_get_html($raw_html);
+                if($raw_dom === false) {
+                  return null;
+                }
                 $category_selector = $this->rssopt['category'];
                 $post_content = $this->rssopt['post_content'];
                 $title = $this->rssopt['title'];
@@ -38,25 +42,39 @@
                     $content['cat_id'][] = $term_id;
                 }
                 $contentTag = $raw_dom->find($post_content,0);
+                if($contentTag == null)
+                  return null;
                 $contentText = trim($contentTag->innertext);
                 $imgTags = array();
                 preg_match_all('/<img[^>]+src="([^">]+)"/', $contentText, $imgTags);
-                $contentText = preg_replace('/<script\b[^>]*>([\s\S]*?)<\/script>/', '', $contentText);
+                $contentText = preg_replace('/<(script|iframe)\b[^>]*>([\s\S]*?)<\/(script|iframe)>/', '', $contentText);
                 foreach($imgTags[1] as $imgSrc) {
                     $contentText = str_replace($imgSrc, $this->replace($imgSrc, false),$contentText);
                 }
                 $content['post_content'] = $contentText;
-                $content['title'] = $raw_dom->find($title,0)->plaintext;
+                $content_title = $raw_dom->find($title,0);
+                if($content_title == null)
+                  return null;
+                $content['title'] = $content_title->plaintext;
             return $content;
+          }
+          catch(Exception $e) {
+            return null;
+          }
         }
         public function import_content(array $contenturls){
             if(empty($contenturls)){
                 return false;
             }
             foreach($contenturls as $key => $contenturl){
-                if(preg_match('/\/(go|category|author|tag)\//',$contenturl) === 1)
+              try {
+                if(preg_match('/\/(category|author|tag)\//',$contenturl) === 1)
                     continue;
                 $contentData = $this->load_content($contenturl);
+                if($contentData == null) {
+                  echo var_dump($contenturl);
+                  continue;
+                }
                 $post = array(
                     'post_content' => $contentData['post_content'],
                     'post_title' => $contentData['title'],
@@ -64,7 +82,7 @@
                     'post_type' => 'post',
                     'post_category' => $contentData['cat_id'],
                     //'post_date' => $pubdate,
-                    //'post_date_gmt' => $pubdate                    
+                    //'post_date_gmt' => $pubdate
                 );
                 if($post_id = wp_insert_post($post)){
                     set_post_thumbnail($post_id,$this->thumbnail_id);
@@ -75,13 +93,18 @@
                 else{
                     $check[$key] = false;
                 }
+              }
+              catch(Exception $e) {
+                echo $contenturl;
+                continue;
+              }
             }
-            return $check;                
+            return $check;
         }
         private function convertDate($datestr = ""){
             $date = DateTime::createFromFormat('n/j/Y g:i:s A',$datestr);
             $newdatestr = $date->format('Y-m-d H:i:s');
-            return $newdatestr;       
+            return $newdatestr;
         }
         private function replace($src,$first = false){
             $url = trim($src);
@@ -92,17 +115,17 @@
             );
             if(is_wp_error($tmp)){
                 @unlink($tmp);
-                return $tmp;
+                return '';
             }
             $id = media_handle_sideload($file_array,0);
             if(is_wp_error($id)){
                 @unlink($tmp);
-                return $id;
+                return '';
             }
             if($first)
                 $this->thumbnail_id = $id;
             $new_src = wp_get_attachment_url($id);
-            return $new_src;                
+            return $new_src;
         }
         private function get_cat_id($cat_name){
             $categories = get_categories();
@@ -115,6 +138,6 @@
             return intval($cat_id);
         }
      }
-    
+
 
 ?>

@@ -1,11 +1,11 @@
-<?php 
+<?php
 	/**
 	*	Plugin Name: Auto get content
 	*	Description: Tu dong lay du lieu
 	*	Author: Dalton Nyx
 	*	Version: 1.0
 	*/
-    
+
     include plugin_dir_path(__FILE__) . '/auto-content-rss.php';
     include plugin_dir_path(__FILE__) . '/auto-content-get.php';
     include plugin_dir_path(__FILE__) . '/auto-content-option.php';
@@ -21,16 +21,17 @@
         if($_POST['update'] == true){
             get_data();
             $_POST['update'] == '';
+						die();
         }
     }
     function auto_update(){
-        $rss_opts = get_option('_auto_rssopts');        
+        $rss_opts = get_option('_auto_rssopts');
         if($rss_opts['autoget'] == 'on')
             get_data();
     }
     function sanitize_cb($value){
         $value = sanitize_text_field($value);
-        return $value;        
+        return $value;
     }
     function register_scripts($hook){
         wp_enqueue_script('auto-update-content',plugins_url('inc/update.content.js',__FILE__),array('jquery'),'',true);
