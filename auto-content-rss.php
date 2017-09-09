@@ -21,10 +21,10 @@
       $links = $this->rss_convert();
       $saved_link = array();
 		  foreach($links as $link){
-				if($this->url_exists($link)){
+				if($this->url_exists($link)) {
           $layer_links = $this->get_internal_links($link);
 					echo var_dump(count($layer_links));
-          while(count($layer_links) > 0 && count($saved_link) <= 500) {
+          while(count($layer_links) > 0 && count($saved_link) <= 50) {
               $inner_link = array_shift($layer_links);
               $saved_link[] = $inner_link;
               $sub_links = $this->get_internal_links($inner_link);
