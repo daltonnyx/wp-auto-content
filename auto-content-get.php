@@ -13,48 +13,68 @@
             $this->rssopt = get_option('_auto_rssopts');
         }
 
-        public function load_content($contenturl){
+        public function load_content($contenturl, $selectors = null){
           try {
-                $link = $contenturl;
+                $link = trim($contenturl);
                 $curl = curl_init($link);
                 curl_setopt($curl,CURLOPT_RETURNTRANSFER,true);
                 $raw_html = curl_exec($curl);
+                $error = curl_error($curl);
                 curl_close($curl);
                 $raw_dom = str_get_html($raw_html);
                 if($raw_dom === false) {
+                  echo "failed to get data from $contenturl \r\n";
+                  echo $error;
+                  echo "\r\n";
                   return null;
                 }
-                $category_selector = $this->rssopt['category'];
-                $post_content = $this->rssopt['post_content'];
-                $title = $this->rssopt['title'];
+                $category_selector = $selectors['category'];
+                $post_content = $selectors['content'];
+                $title = $selectors['title'];
                 $content = array();
-                foreach($raw_dom->find($category_selector) as $category) {
-                    $category_title = $category->plaintext;
-                    $term = get_term_by('name', $category_title, 'category');
-                    $term_id = 1;
-                    if($term === false) {
-                        $termArr = wp_insert_term($category_title, 'category');
-                        $term_id = $termArr['term_id'];
-                    }
-                    else {
-                        $term_id = $term->term_id;
-                    }
-                    $content['cat_id'][] = $term_id;
+                if(!empty($category_selector)) {
+                  foreach($raw_dom->find($category_selector) as $category) {
+                      $category_title = $category->plaintext;
+                      $term = get_term_by('name', $category_title, 'category');
+                      $term_id = 1;
+                      if($term === false) {
+                          $termArr = wp_insert_term($category_title, 'category');
+                          $term_id = $termArr['term_id'];
+                      }
+                      else {
+                          $term_id = $term->term_id;
+                      }
+                      $content['cat_id'][] = $term_id;
+                  }
                 }
-                $contentTag = $raw_dom->find($post_content,0);
-                if($contentTag == null)
+                $contentTags = $raw_dom->find($post_content);
+                if($contentTags == null) {
+                  echo "failed to get content\r\n";
+                  echo var_dump($post_content)."\r\n";
                   return null;
-                $contentText = trim($contentTag->innertext);
+                }
+                $contentText = '';
+                foreach ($contentTags as $contentTag) {
+                  $contentText .= trim($contentTag->innertext);
+                }
                 $imgTags = array();
-                preg_match_all('/<img[^>]+src="([^">]+)"/', $contentText, $imgTags);
+                preg_match_all('/<img[^>]+(src|srcset)="([^">]+)"/', $contentText, $imgTags);
                 $contentText = preg_replace('/<(script|iframe)\b[^>]*>([\s\S]*?)<\/(script|iframe)>/', '', $contentText);
-                foreach($imgTags[1] as $imgSrc) {
-                    $contentText = str_replace($imgSrc, $this->replace($imgSrc, false),$contentText);
+                foreach($imgTags[2] as $imgTag) {
+                  $imgSrcs = array();
+                  echo var_dump($imgTag);
+                  preg_match_all('/\S*\.(jpg|JPG|jpeg|JPEG|tiff|TIFF|gif|GIF|png|PNG)/',$imgTag, $imgSrcs);
+                  echo var_dump($imgSrcs[0]);
+                  foreach($imgSrcs[0] as $imgSrc) {
+                      $contentText = str_replace($imgSrc, $this->replace($imgSrc, false),$contentText);
+                  }
                 }
                 $content['post_content'] = $contentText;
                 $content_title = $raw_dom->find($title,0);
-                if($content_title == null)
+                if($content_title == null) {
+                  echo "failed to get title";
                   return null;
+                }
                 $content['title'] = $content_title->plaintext;
             return $content;
           }
@@ -62,23 +82,28 @@
             return null;
           }
         }
-        public function import_content(array $contenturls){
+        public function import_content(array $contenturls, $post_id = null){
             if(empty($contenturls)){
                 return false;
             }
+            $selectors = array(
+            'category' => get_post_meta($post_id, '_vnb_category',true),
+            'content' => get_post_meta($post_id, '_vnb_content',true),
+            'title' => get_post_meta($post_id, '_vnb_title',true),
+          );
             foreach($contenturls as $key => $contenturl){
               try {
-                if(preg_match('/\/(category|author|tag)\//',$contenturl) === 1)
-                    continue;
-                $contentData = $this->load_content($contenturl);
+                // if(preg_match('/\/(category|author|tag)\//',$contenturl) === 1)
+                //     continue;
+                $contentData = $this->load_content($contenturl, $selectors);
                 if($contentData == null) {
-                  echo var_dump($contenturl);
+                  //echo var_dump($contenturl);
                   continue;
                 }
                 $post = array(
                     'post_content' => $contentData['post_content'],
                     'post_title' => $contentData['title'],
-                    'post_status' => $this->rssopt['status'],
+                    'post_status' => 'draft',
                     'post_type' => 'post',
                     'post_category' => $contentData['cat_id'],
                     //'post_date' => $pubdate,

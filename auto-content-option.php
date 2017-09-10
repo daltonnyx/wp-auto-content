@@ -12,13 +12,14 @@
          */
         public function __construct(){
             add_action('admin_menu',array($this,'create_page'));
-            add_action('admin_init',array($this,'option_page_init'));
+            //add_action('admin_init',array($this,'option_page_init'));
         }
         /**
          * function with above hook contain add_post_page function
          */
         public function create_page(){
-            $page_name = add_posts_page(
+            $page_name = add_submenu_page(
+                'edit.php?post_type=get_link',
                 'Auto Get Content',
                 'Auto Get','manage_options',
                 'sosi_auto_content',
